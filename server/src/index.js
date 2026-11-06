@@ -18,6 +18,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Required behind a reverse proxy (e.g. Render, Heroku) so Express sees the
+// real client protocol — otherwise secure cookies never get set because the
+// proxy's internal connection to this process looks like plain HTTP.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
 

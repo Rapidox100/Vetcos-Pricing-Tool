@@ -17,10 +17,13 @@ import { requireAuth, TOKEN_COOKIE } from '../lib/middleware.js';
 
 const router = Router();
 
+// Render (and most hosts) terminate HTTPS at a proxy in front of the app and
+// set NODE_ENV=production; the cookie should only require HTTPS in that case,
+// not for plain local development on http://localhost.
 const cookieOpts = {
   httpOnly: true,
   sameSite: 'lax',
-  secure: false, // set true behind HTTPS in production
+  secure: process.env.NODE_ENV === 'production',
   maxAge: 12 * 60 * 60 * 1000,
 };
 
