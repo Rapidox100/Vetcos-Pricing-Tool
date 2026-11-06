@@ -1,0 +1,25 @@
+[Unit]
+Description=Vetcos Quote Tool
+After=network.target
+
+[Service]
+Type=simple
+# The app lives here after setup.sh clones the repo.
+WorkingDirectory=/opt/vetcos/Vetcos-Pricing-Tool
+# EnvironmentFile holds JWT_SECRET, PORT, NODE_ENV - created by setup.sh,
+# never committed to git.
+EnvironmentFile=/opt/vetcos/Vetcos-Pricing-Tool/.env
+ExecStart=/usr/bin/node server/src/index.js
+Restart=on-failure
+RestartSec=5
+User=vetcos
+Group=vetcos
+
+# Modest hardening - the app only needs to read/write its own data dir.
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/vetcos/Vetcos-Pricing-Tool/server/data
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
