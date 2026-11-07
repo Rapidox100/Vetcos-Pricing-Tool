@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import { rupees, fmtDateTime, fmtDate } from '../lib/format.js';
-import { Spinner, Modal, useToast } from '../components/ui.jsx';
+import { Spinner, Modal, PdfLink, useToast } from '../components/ui.jsx';
 import QuoteForm from '../components/QuoteForm.jsx';
 
 export default function Quotes() {
@@ -96,24 +96,20 @@ export default function Quotes() {
                   <td className="td">{rupees(x.monthlyTotal)}</td>
                   {isAdmin && <td className="td">{x.issuedByName}</td>}
                   <td className="td" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex gap-2">
-                      <a
+                    <div className="flex items-center gap-2">
+                      <PdfLink
                         href={api.pdfUrl(`/quotes/${x.id}/quotation.pdf`)}
-                        target="_blank"
-                        rel="noreferrer"
+                        filename={`${x.quoteNumber}-Quotation.pdf`}
+                        label="Quotation"
                         className="text-xs font-semibold text-teal-600 hover:underline dark:text-teal-400"
-                      >
-                        Quotation
-                      </a>
+                      />
                       <span className="text-slate-300">·</span>
-                      <a
+                      <PdfLink
                         href={api.pdfUrl(`/quotes/${x.id}/purchase-order.pdf`)}
-                        target="_blank"
-                        rel="noreferrer"
+                        filename={`${x.quoteNumber}-PurchaseOrder.pdf`}
+                        label="PO"
                         className="text-xs font-semibold text-orange-600 hover:underline dark:text-orange-400"
-                      >
-                        PO
-                      </a>
+                      />
                     </div>
                   </td>
                   <td className="td" onClick={(e) => e.stopPropagation()}>
@@ -189,22 +185,18 @@ function QuoteDetailModal({ id, onClose, isAdmin, onEdit }) {
             <button type="button" className="btn-ghost" onClick={() => onEdit(quote.id)}>
               Edit
             </button>
-            <a
+            <PdfLink
               href={api.pdfUrl(`/quotes/${quote.id}/purchase-order.pdf`)}
-              target="_blank"
-              rel="noreferrer"
+              filename={`${quote.quoteNumber}-PurchaseOrder.pdf`}
+              label="Purchase Order PDF"
               className="btn-accent"
-            >
-              Purchase Order PDF
-            </a>
-            <a
+            />
+            <PdfLink
               href={api.pdfUrl(`/quotes/${quote.id}/quotation.pdf`)}
-              target="_blank"
-              rel="noreferrer"
+              filename={`${quote.quoteNumber}-Quotation.pdf`}
+              label="Quotation PDF"
               className="btn-primary"
-            >
-              Quotation PDF
-            </a>
+            />
           </>
         )
       }

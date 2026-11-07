@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
-import { Spinner, useToast } from '../components/ui.jsx';
+import { Spinner, PdfLink, useToast } from '../components/ui.jsx';
 import QuoteForm from '../components/QuoteForm.jsx';
 
 export default function Quotation() {
@@ -38,22 +38,18 @@ export default function Quotation() {
           <p className="text-sm font-semibold text-teal-600 dark:text-teal-400">
             Saved: {saved.quoteNumber}
           </p>
-          <a
+          <PdfLink
             href={api.pdfUrl(`/quotes/${saved.id}/quotation.pdf`)}
-            target="_blank"
-            rel="noreferrer"
+            filename={`${saved.quoteNumber}-Quotation.pdf`}
+            label="Quotation PDF"
             className="btn-primary"
-          >
-            Download Quotation PDF
-          </a>
-          <a
+          />
+          <PdfLink
             href={api.pdfUrl(`/quotes/${saved.id}/purchase-order.pdf`)}
-            target="_blank"
-            rel="noreferrer"
+            filename={`${saved.quoteNumber}-PurchaseOrder.pdf`}
+            label="Purchase Order PDF"
             className="btn-accent"
-          >
-            Download Purchase Order PDF
-          </a>
+          />
         </div>
       )}
     </div>

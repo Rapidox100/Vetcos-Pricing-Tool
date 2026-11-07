@@ -1,8 +1,39 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 
 // --- Logo -------------------------------------------------------------------
 export function Logo({ className = 'h-9' }) {
   return <img src="/logo.png" alt="Vetcos" className={className} />;
+}
+
+// --- PDF link + download ------------------------------------------------
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+// A PDF's preview link (opens in a new tab) plus a small download icon
+// (forces a file save - important on mobile, where the inline preview has
+// no visible save/share control of its own).
+export function PdfLink({ href, label, filename, className }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <a href={href} target="_blank" rel="noreferrer" className={className}>
+        {label}
+      </a>
+      <a
+        href={href}
+        download={filename}
+        title={`Download ${label}`}
+        aria-label={`Download ${label}`}
+        className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+      >
+        <DownloadIcon />
+      </a>
+    </span>
+  );
 }
 
 // --- Spinner ----------------------------------------------------------------
@@ -78,19 +109,70 @@ export function useToast() {
 }
 
 // --- Modal ------------------------------------------------------------------
+// While a modal is open, the phone/browser Back button closes the modal
+// instead of navigating the page underneath it (which previously made Back
+// jump out to an earlier tab/screen instead of just dismissing the popup).
+// We do this by pushing one history entry when the modal opens, and treating
+// a "popstate" (Back pressed) as a close request.
+function useBackButtonClose(open, onClose) {
+  const closingViaBack = useRef(false);
+
+  useEffect(() => {
+    if (!open) return undefined;
+
+    window.history.pushState({ vetcosModal: true }, '');
+    closingViaBack.current = false;
+
+    const onPopState = () => {
+      closingViaBack.current = true;
+      onClose();
+    };
+    window.addEventListener('popstate', onPopState);
+
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      // If the modal is closing for any reason OTHER than the user having
+      // already pressed Back, remove the history entry we pushed so Back
+      // doesn't later land on a stale "modal was open" state.
+      if (!closingViaBack.current) {
+        window.history.back();
+      }
+    };
+  }, [open]); // eslint-disable-line
+}
+
 export function Modal({ open, onClose, title, children, footer, wide }) {
+  useBackButtonClose(open, onClose);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
-        className={`card relative z-10 max-h-[90vh] w-full overflow-y-auto p-6 ${
-          wide ? 'max-w-2xl' : 'max-w-md'
-        }`}
+        className={`card relative z-10 flex max-h-[90vh] w-full flex-col ${wide ? 'max-w-2xl' : 'max-w-md'}`}
       >
-        {title && <h3 className="mb-4 text-lg font-bold text-slate-800 dark:text-slate-100">{title}</h3>}
-        <div>{children}</div>
-        {footer && <div className="mt-6 flex justify-end gap-2">{footer}</div>}
+        <div className="flex items-start justify-between gap-3 border-b border-slate-200 p-6 pb-4 dark:border-slate-700">
+          {title ? (
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">{title}</h3>
+          ) : (
+            <span />
+          )}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="-m-1.5 shrink-0 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-200"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+        <div className="overflow-y-auto p-6 pt-4">{children}</div>
+        {footer && (
+          <div className="flex flex-wrap justify-end gap-2 border-t border-slate-200 p-4 dark:border-slate-700">
+            {footer}
+          </div>
+        )}
       </div>
     </div>
   );
