@@ -1,4 +1,8 @@
-import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
+
+// Lazy-loaded so the ~300KB pdf.js library is only fetched when a PDF is
+// actually previewed, not as part of the main app bundle.
+const PdfViewer = lazy(() => import('./PdfViewer.jsx'));
 
 // --- Logo -------------------------------------------------------------------
 export function Logo({ className = 'h-9' }) {
@@ -14,15 +18,15 @@ function DownloadIcon() {
   );
 }
 
-// A PDF's preview link (opens in a new tab) plus a small download icon
-// (forces a file save - important on mobile, where the inline preview has
-// no visible save/share control of its own).
+// A PDF's preview action (opens an in-app viewer, rendered with pdf.js)
+// plus a small download icon for a direct file save.
 export function PdfLink({ href, label, filename, className }) {
+  const [open, setOpen] = useState(false);
   return (
     <span className="inline-flex items-center gap-1">
-      <a href={href} target="_blank" rel="noreferrer" className={className}>
+      <button type="button" onClick={() => setOpen(true)} className={className}>
         {label}
-      </a>
+      </button>
       <a
         href={href}
         download={filename}
@@ -32,7 +36,28 @@ export function PdfLink({ href, label, filename, className }) {
       >
         <DownloadIcon />
       </a>
+      <PdfPreviewModal open={open} onClose={() => setOpen(false)} url={href} filename={filename} title={label} />
     </span>
+  );
+}
+
+// Shows a PDF rendered in-app (via pdf.js) inside the shared Modal shell,
+// instead of handing off to the OS/browser's bare PDF viewer.
+export function PdfPreviewModal({ open, onClose, url, filename, title }) {
+  return (
+    <Modal open={open} onClose={onClose} wide title={title}>
+      {open && (
+        <Suspense
+          fallback={
+            <div className="flex justify-center py-16">
+              <Spinner className="h-7 w-7 text-teal-500" />
+            </div>
+          }
+        >
+          <PdfViewer url={url} filename={filename} />
+        </Suspense>
+      )}
+    </Modal>
   );
 }
 
@@ -112,25 +137,27 @@ export function useToast() {
 // While a modal is open, the phone/browser Back button closes the modal
 // instead of navigating the page underneath it (which previously made Back
 // jump out to an earlier tab/screen instead of just dismissing the popup).
-// We do this by pushing one history entry when the modal opens, and treating
-// a "popstate" (Back pressed) as a close request.
+// We do this by pushing one history entry per open modal, and treating a
+// "popstate" (Back pressed) as "close the TOPMOST modal only" - modals can
+// be nested (e.g. a PDF preview opened from inside a details popup), and a
+// single Back press must close just the one on top, not every open modal.
+const openModalStack = [];
+
 function useBackButtonClose(open, onClose) {
   const closingViaBack = useRef(false);
+  const selfRef = useRef({});
 
   useEffect(() => {
     if (!open) return undefined;
 
+    const self = selfRef.current;
     window.history.pushState({ vetcosModal: true }, '');
     closingViaBack.current = false;
-
-    const onPopState = () => {
-      closingViaBack.current = true;
-      onClose();
-    };
-    window.addEventListener('popstate', onPopState);
+    openModalStack.push(self);
 
     return () => {
-      window.removeEventListener('popstate', onPopState);
+      const idx = openModalStack.indexOf(self);
+      if (idx !== -1) openModalStack.splice(idx, 1);
       // If the modal is closing for any reason OTHER than the user having
       // already pressed Back, remove the history entry we pushed so Back
       // doesn't later land on a stale "modal was open" state.
@@ -139,6 +166,20 @@ function useBackButtonClose(open, onClose) {
       }
     };
   }, [open]); // eslint-disable-line
+
+  // A single shared listener (added once, at module scope-ish via effect
+  // below) dispatches each Back press to only the topmost modal.
+  useEffect(() => {
+    const onPopState = () => {
+      const topmost = openModalStack[openModalStack.length - 1];
+      if (topmost === selfRef.current) {
+        closingViaBack.current = true;
+        onClose();
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [onClose]);
 }
 
 export function Modal({ open, onClose, title, children, footer, wide }) {
